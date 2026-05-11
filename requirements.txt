@@ -1,0 +1,15 @@
+PyQt6>=6.5.0
+playwright>=1.40.0
+apscheduler>=3.10.4
+aiohttp>=3.9.0
+requests>=2.31.0
+pyyaml>=6.0
+loguru>=0.7.2
+openai>=1.6.0
+jieba>=0.42.1
+fake-useragent>=1.4.0
+Pillow>=10.1.0
+openpyxl>=3.1.2
+lxml>=4.9.0
+beautifulsoup4>=4.12.0
+sqlalchemy>=2.0.0

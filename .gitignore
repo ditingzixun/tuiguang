@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data directory (runtime data, not source)
+data/logs/
+data/profiles/
+data/screenshots/
+data/exports/
+data/backups/
+data/*.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/
+
+# Sensitive
+*.key
+.env
+.env.local
