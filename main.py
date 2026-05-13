@@ -1,121 +1,81 @@
-"""资质代办行业全网推广自动化软件
-主入口文件
-"""
+"""资质代办行业全网推广自动化软件 -- 主入口"""
 import sys
 import os
+import logging
+import traceback
 
-# 确保项目根目录在path中
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# PyInstaller 打包后资源路径处理
+if getattr(sys, 'frozen', False):
+    _BASE_DIR = os.path.dirname(sys.executable)
+else:
+    _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+os.chdir(_BASE_DIR)
+sys.path.insert(0, _BASE_DIR)
 
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtGui import QFont, QIcon
 from ui.main_window import MainWindow
-from loguru import logger
-
-
-def setup_environment():
-    """初始化运行环境"""
-    os.makedirs("data/logs", exist_ok=True)
-    os.makedirs("data/profiles", exist_ok=True)
-    os.makedirs("data/screenshots", exist_ok=True)
-    os.makedirs("data/exports", exist_ok=True)
-
-    logger.add(
-        "data/logs/app_{time:YYYY-MM-DD}.log",
-        rotation="10 MB",
-        retention="30 days",
-        level="INFO",
-        encoding="utf-8",
-    )
-    logger.info("=" * 60)
-    logger.info("资质代办全网推广助手 启动中...")
-    logger.info("=" * 60)
+from ui.styles.theme_manager import theme_manager
+from utils.logging_setup import setup_logging
+from utils.config_loader import config_loader
 
 
 def main():
-    setup_environment()
+    try:
+        os.makedirs("data/logs", exist_ok=True)
+        os.makedirs("data/profiles", exist_ok=True)
+        os.makedirs("data/screenshots", exist_ok=True)
+        os.makedirs("data/exports", exist_ok=True)
+    except Exception:
+        pass
+
+    setup_logging()
+    logger = logging.getLogger(__name__)
+    logger.info("=" * 60)
+    logger.info("资质代办全网推广助手 启动中...")
+    logger.info("=" * 60)
 
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     app.setFont(QFont("Microsoft YaHei", 9))
 
-    # 全局样式
-    app.setStyleSheet("""
-        QMainWindow {
-            background-color: #f5f5f5;
-        }
-        QTableWidget {
-            gridline-color: #e0e0e0;
-            selection-background-color: #0078d4;
-            selection-color: white;
-        }
-        QTableWidget::item {
-            padding: 4px;
-        }
-        QPushButton {
-            background-color: #0078d4;
-            color: white;
-            border: none;
-            padding: 6px 16px;
-            border-radius: 4px;
-            font-weight: bold;
-        }
-        QPushButton:hover {
-            background-color: #106ebe;
-        }
-        QPushButton:pressed {
-            background-color: #005a9e;
-        }
-        QPushButton:disabled {
-            background-color: #cccccc;
-        }
-        QGroupBox {
-            font-weight: bold;
-            border: 1px solid #d0d0d0;
-            border-radius: 4px;
-            margin-top: 8px;
-            padding-top: 16px;
-        }
-        QGroupBox::title {
-            subcontrol-origin: margin;
-            left: 10px;
-            padding: 0 5px;
-        }
-        QTabWidget::pane {
-            border: 1px solid #d0d0d0;
-            background-color: white;
-        }
-        QTabBar::tab {
-            background-color: #e8e8e8;
-            padding: 8px 20px;
-            margin-right: 2px;
-            border-top-left-radius: 4px;
-            border-top-right-radius: 4px;
-        }
-        QTabBar::tab:selected {
-            background-color: white;
-            border-bottom: 2px solid #0078d4;
-        }
-        QStatusBar {
-            background-color: #0078d4;
-            color: white;
-        }
-        QLineEdit, QTextEdit, QSpinBox, QComboBox {
-            border: 1px solid #d0d0d0;
-            border-radius: 3px;
-            padding: 4px;
-        }
-        QLineEdit:focus, QTextEdit:focus {
-            border-color: #0078d4;
-        }
-    """)
+    # 窗口图标
+    icon_path = os.path.join(os.path.dirname(__file__), "assets", "icon.ico")
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
+
+    # 首次启动配置引导
+    setup_completed = os.getenv("SETUP_COMPLETED", "").lower() == "true"
+    if not setup_completed:
+        from db.database import DatabaseManager
+        from ui.setup_wizard import SetupWizard
+        db = DatabaseManager()
+        db.init_db()
+        wizard = SetupWizard(db, config_loader)
+        wizard.exec()
+        db.close()
+
+    # 全局主题
+    theme_name = config_loader.get("THEME", "dark").strip().lower()
+    if theme_name not in ("dark", "light"):
+        theme_name = "dark"
+    theme_manager.init(app, theme_name)
 
     window = MainWindow()
     window.show()
-
     logger.info("主窗口已显示")
     sys.exit(app.exec())
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        err_msg = f"程序启动失败:\n\n{traceback.format_exc()}"
+        print(err_msg)
+        try:
+            app = QApplication(sys.argv)
+            QMessageBox.critical(None, "启动失败", err_msg[:800])
+        except Exception:
+            pass
+        sys.exit(1)

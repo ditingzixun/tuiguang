@@ -1,7 +1,7 @@
 """企查查/天眼查类B2B信息平台插件（千眼企业服务平台）"""
 from plugins.base_plugin import BasePlatformPlugin
 from utils.behavior_sim import behavior_sim
-from loguru import logger
+import logging; logger = logging.getLogger(__name__)
 
 
 class QianyanPlugin(BasePlatformPlugin):
@@ -45,11 +45,26 @@ class QianyanPlugin(BasePlatformPlugin):
         try:
             await self._page.goto(self.platform_info["publish_url"], wait_until="networkidle")
             await behavior_sim.random_delay(1, 3)
-            await self.fill_form_field("input[name='title']", title)
-            await self.fill_form_field("textarea[name='description']", content[:500])
-            company = kwargs.get("company_name", "")
-            if company:
-                await self.fill_form_field("input[name='company_name']", company)
+            await self.fill_form_field(self._sel("title_input", "input[name='title']"), title)
+            await self.fill_form_field(self._sel("content_input", "textarea[name='description']"), content[:500])
+
+            company_name = kwargs.get("company_name", "")
+            if company_name:
+                await self.fill_form_field("input[name='company_name']", company_name)
+
+            contact_person = kwargs.get("contact_person", "")
+            if contact_person:
+                await self.fill_form_field("input[name='contact_person']", contact_person)
+
+            contact_phone = kwargs.get("contact_phone", "")
+            if contact_phone:
+                await self.fill_form_field("input[name='phone']", contact_phone)
+
+            images = kwargs.get("images", [])
+            for img_path in images:
+                await self.upload_image("input[type='file']", img_path)
+                await behavior_sim.random_delay(1, 2)
+
             await behavior_sim.random_delay(1, 2)
             submit = await self._page.query_selector("button[type='submit'], .submit-btn")
             if submit:

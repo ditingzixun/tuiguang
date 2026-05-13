@@ -1,12 +1,10 @@
-"""浏览器指纹管理 - 多浏览器指纹隔离，一号一箱"""
+"""浏览器指纹管理 — 多浏览器指纹隔离，一号一箱"""
 import os
 import json
 import random
-import string
-import hashlib
 from datetime import datetime
 from fake_useragent import UserAgent
-from loguru import logger
+import logging; logger = logging.getLogger(__name__)
 
 
 class FingerprintManager:
@@ -25,28 +23,42 @@ class FingerprintManager:
         os.makedirs(profile_dir, exist_ok=True)
 
         ua = self._generate_unique_ua(account_id)
+        # 生成真实常见的屏幕分辨率组合
+        resolutions = [
+            (1366, 768), (1440, 900), (1536, 864), (1680, 1050),
+            (1920, 1080), (2560, 1440), (1280, 720), (1600, 900),
+        ]
+        viewport_w, viewport_h = random.choice(resolutions)
         fingerprint = {
             "account_id": account_id,
             "platform": platform,
             "profile_dir": profile_dir,
             "user_agent": ua,
-            "viewport": {
-                "width": random.choice([1366, 1440, 1536, 1680, 1920]),
-                "height": random.choice([768, 900, 864, 1050, 1080]),
+            "viewport": {"width": viewport_w, "height": viewport_h},
+            "screen": {
+                "width": viewport_w,
+                "height": viewport_h,
+                "color_depth": random.choice([24, 24, 24, 30]),
+                "pixel_depth": 24,
             },
             "locale": "zh-CN",
-            "timezone_id": "Asia/Shanghai",
+            "timezone_id": random.choice(["Asia/Shanghai", "Asia/Shanghai", "Asia/Shanghai",
+                                           "Asia/Chongqing", "Asia/Harbin"]),
             "geolocation": {
                 "latitude": round(random.uniform(22.0, 40.0), 6),
                 "longitude": round(random.uniform(100.0, 122.0), 6),
             },
-            "color_scheme": random.choice(["light", "dark", "no-preference"]),
-            "device_scale_factor": random.choice([1, 1.25, 1.5, 2]),
+            "color_scheme": random.choice(["light", "light", "light", "dark", "no-preference"]),
+            "device_scale_factor": random.choices(
+                [1, 1.25, 1.5, 2], weights=[40, 25, 20, 15]
+            )[0],
             "is_mobile": False,
             "has_touch": False,
-            "platform_name": random.choice(["Windows", "Windows", "Windows", "macOS"]),
-            "hardware_concurrency": random.choice([4, 8, 12, 16]),
-            "device_memory": random.choice([4, 8, 16]),
+            "platform_name": random.choices(
+                ["Win32", "Win32", "Win32", "MacIntel", "Linux x86_64"]
+            )[0],
+            "hardware_concurrency": random.choice([2, 4, 4, 8, 8, 8, 12, 16]),
+            "device_memory": random.choices([2, 4, 4, 8, 8, 16], weights=[10, 30, 25, 20, 10, 5])[0],
             "vendor": "Google Inc.",
             "rendering_engines": ["Blink"],
             "canvas_noise": True,
@@ -77,39 +89,68 @@ class FingerprintManager:
             json.dump(fingerprint, f, ensure_ascii=False, indent=2)
 
     def _generate_unique_ua(self, account_id: int) -> str:
-        """为每个账号生成唯一UA"""
-        ua = self._ua_generator.chrome
-        # 确保每个账号的UA不同
-        hash_suffix = hashlib.md5(f"{account_id}{random.random()}".encode()).hexdigest()[:8]
-        if "Chrome/" in ua:
-            ua = ua.replace("Chrome/", f"Chrome/{random.randint(100, 130)}.0.")
-        return f"{ua} {hash_suffix}"
+        """为每个账号生成自然外观的唯一UA
+
+        基于真实中国用户的Chrome版本分布构建，不添加可疑的后缀哈希。
+        """
+        # 基于 account_id 确定性生成（同一账号始终得到相同UA）
+        rng = random.Random(account_id * 7907 + 27449)
+
+        # Chrome 主版本号分布 (120-134)
+        chrome_major = rng.randint(120, 134)
+        chrome_build = rng.randint(4000, 6999)
+        chrome_patch = rng.randint(0, 199)
+
+        # Windows NT 版本
+        nt_version = rng.choice(["10.0", "10.0", "10.0", "10.0", "6.1"])
+        # Win64/WOW64
+        arch = rng.choice(["Win64; x64", "Win64; x64", "Win64; x64", "WOW64"])
+
+        ua = (
+            f"Mozilla/5.0 (Windows NT {nt_version}; {arch}) "
+            f"AppleWebKit/537.36 (KHTML, like Gecko) "
+            f"Chrome/{chrome_major}.0.{chrome_build}.{chrome_patch} "
+            f"Safari/537.36"
+        )
+        return ua
 
     def _generate_webgl_vendor(self) -> str:
         vendors = [
             "Google Inc. (Intel)",
+            "Google Inc. (Intel)",
+            "Google Inc. (NVIDIA)",
             "Google Inc. (NVIDIA)",
             "Google Inc. (AMD)",
             "Google Inc. (Intel Inc.)",
+            "Google Inc. (Microsoft)",
         ]
         return random.choice(vendors)
 
     def _generate_webgl_renderer(self) -> str:
         renderers = [
             "ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0)",
+            "ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0)",
+            "ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Direct3D11 vs_5_0 ps_5_0)",
             "ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Direct3D11 vs_5_0 ps_5_0)",
             "ANGLE (AMD, AMD Radeon(TM) Graphics Direct3D11 vs_5_0 ps_5_0)",
             "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics Direct3D11 vs_5_0 ps_5_0)",
+            "ANGLE (Intel, Intel(R) HD Graphics 630 Direct3D11 vs_5_0 ps_5_0)",
+            "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0)",
+            "ANGLE (AMD, AMD Radeon RX 580 Direct3D11 vs_5_0 ps_5_0)",
+            "ANGLE (Intel, Intel(R) UHD Graphics 730 Direct3D11 vs_5_0 ps_5_0)",
         ]
         return random.choice(renderers)
 
     def _get_random_fonts(self) -> list:
+        # 模拟中国用户常见的系统字体组合
         base_fonts = [
             "Arial", "Times New Roman", "Courier New", "Georgia",
-            "Verdana", "SimSun", "Microsoft YaHei", "SimHei",
-            "KaiTi", "FangSong", "NSimSun", "STSong",
+            "Verdana", "Tahoma", "Trebuchet MS", "Comic Sans MS",
+            "SimSun", "Microsoft YaHei", "SimHei", "KaiTi",
+            "FangSong", "NSimSun", "STSong", "STXihei", "STKaiti",
+            "Microsoft JhengHei", "PMingLiU", "DengXian",
         ]
-        k = random.randint(6, len(base_fonts))
+        k = random.randint(8, len(base_fonts))
         return random.sample(base_fonts, k)
 
     def get_cookies_path(self, account_id: int) -> str:

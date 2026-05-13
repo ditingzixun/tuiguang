@@ -5,7 +5,7 @@ import time
 import random
 from abc import ABC, abstractmethod
 from typing import Optional
-from loguru import logger
+import logging; logger = logging.getLogger(__name__)
 from utils.behavior_sim import behavior_sim
 from utils.text_filter import SensitiveWordFilter
 
@@ -27,13 +27,18 @@ class BasePlatformPlugin(ABC):
         "version": "1.0.0",
     }
 
-    def __init__(self, account: dict, browser_context, fingerprint: dict = None):
+    def __init__(self, account: dict, browser_context, fingerprint: dict = None, selectors: dict = None):
         self.account = account
         self.context = browser_context
         self.fingerprint = fingerprint or {}
         self.filter = SensitiveWordFilter()
+        self._selectors = selectors or {}
         self._page = None
         self._is_logged_in = False
+
+    def _sel(self, field_name: str, default: str) -> str:
+        """获取选择器：优先使用配置覆盖，否则回退到硬编码默认值"""
+        return self._selectors.get(field_name, default)
 
     async def init(self):
         """初始化插件"""
@@ -139,6 +144,8 @@ class PluginManager:
 
         self._scan_directory(b2b_dir)
         self._scan_directory(media_dir)
+        classified_dir = os.path.join(plugins_dir, "classified")
+        self._scan_directory(classified_dir)
         logger.info(f"已发现 {len(self._plugins)} 个平台插件")
 
     def _scan_directory(self, directory: str):

@@ -1,10 +1,34 @@
 """自定义平台插件模板
-复制此文件创建新的平台插件，修改类名和 platform_info 即可
-无需改动主程序代码
+
+=== 接入新平台只需4步 ===
+1. 复制此文件到 plugins/b2b/ 或 plugins/media/ 或 plugins/classified/
+2. 重命名文件、类名
+3. 填写 platform_info (name须唯一)
+4. 实现 login() 和 publish() 方法
+
+=== publish() 可用的自动填充 kwargs ===
+由主程序 _publish_callback 自动注入，插件可直接使用:
+- company_name (str): 公司全称 (来自企业资料)
+- company_short_name (str): 简称
+- contact_person (str): 联系人
+- contact_phone (str): 联系电话 (企业资料或账号手机号)
+- contact_email (str): 邮箱 (账号邮箱)
+- address (str): 公司地址
+- website (str): 网站
+- category (str): 资质/服务类型 (内容的 qualification_type)
+- content_type (str): 文案类型
+- images (list[str]): 图片文件路径列表
+- form_config (dict): 自定义表单配置
+- selectors_override (dict): 选择器覆盖 (已通过 _sel() 方法处理)
+
+=== _sel() 辅助方法 ===
+self._sel("field_name", "default_selector")
+优先使用 platform_configs.selectors 中配置的覆盖选择器，否则返回默认值。
+这样无需改代码即可通过UI配置选择器。
 """
 from plugins.base_plugin import BasePlatformPlugin
 from utils.behavior_sim import behavior_sim
-from loguru import logger
+import logging; logger = logging.getLogger(__name__)
 
 
 class CustomPlatformPlugin(BasePlatformPlugin):
@@ -62,7 +86,12 @@ class CustomPlatformPlugin(BasePlatformPlugin):
         Args:
             title: 文章标题
             content: 文章内容
-            **kwargs: 额外参数 (category, tags, contact, company_name 等)
+            **kwargs: 自动填充参数 (详见文件顶部文档)
+              - company_name, company_short_name, contact_person, contact_phone,
+                contact_email, address, website (企业资料)
+              - category, content_type (内容分类)
+              - images (图片路径列表)
+              - form_config, selectors_override (平台配置)
 
         Returns:
             str | None: 发布成功返回文章URL，失败返回None
@@ -76,19 +105,29 @@ class CustomPlatformPlugin(BasePlatformPlugin):
             await behavior_sim.random_delay(1, 3)
 
             # --- 在此处实现具体的发布逻辑 ---
-            # 示例：
+            # 示例（使用 _sel() 支持选择器覆盖 + 消费全部 kwargs）:
             # await behavior_sim.random_scroll(self._page)
-            # await self.fill_form_field("input[name='title']", title)
-            # await self.fill_form_field("textarea[name='content']", content)
+            # await self.fill_form_field(self._sel("title_input", "input[name='title']"), title)
+            # await self.fill_form_field(self._sel("content_input", "textarea[name='content']"), content)
             #
-            # # 可选：填写分类、标签等
-            # category = kwargs.get("category", "")
-            # if category:
-            #     await self.fill_form_field("select[name='category']", category, "select")
+            # # 企业信息自动填充
+            # if kwargs.get("company_name"):
+            #     await self.fill_form_field("input[name='company']", kwargs["company_name"])
+            # if kwargs.get("contact_phone"):
+            #     await self.fill_form_field("input[name='phone']", kwargs["contact_phone"])
+            #
+            # # 分类选择
+            # if kwargs.get("category"):
+            #     await self.fill_form_field("select[name='category']", kwargs["category"], "select")
+            #
+            # # 图片上传
+            # for img_path in kwargs.get("images", []):
+            #     await self.upload_image("input[type='file']", img_path)
+            #     await behavior_sim.random_delay(1, 2)
             #
             # # 提交发布
             # await behavior_sim.random_delay(1, 2)
-            # submit = await self._page.query_selector("button[type='submit']")
+            # submit = await self._page.query_selector(self._sel("submit_btn", "button[type='submit']"))
             # if submit:
             #     await submit.click()
             #     await self._page.wait_for_load_state("networkidle")

@@ -1,7 +1,7 @@
 """黄页88 B2B平台插件"""
 from plugins.base_plugin import BasePlatformPlugin
 from utils.behavior_sim import behavior_sim
-from loguru import logger
+import logging; logger = logging.getLogger(__name__)
 
 
 class Huangye88Plugin(BasePlatformPlugin):
@@ -45,14 +45,28 @@ class Huangye88Plugin(BasePlatformPlugin):
             await self._page.goto(self.platform_info["publish_url"], wait_until="networkidle")
             await behavior_sim.random_delay(1, 3)
             await behavior_sim.random_scroll(self._page)
-            await self.fill_form_field("input[name='title']", title)
-            await self.fill_form_field("textarea[name='content']", content)
+            await self.fill_form_field(self._sel("title_input", "input[name='title']"), title)
+            await self.fill_form_field(self._sel("content_input", "textarea[name='content']"), content)
+
+            company_name = kwargs.get("company_name", "")
+            if company_name:
+                await self.fill_form_field("input[name='company']", company_name)
+
+            contact_phone = kwargs.get("contact_phone", "")
+            if contact_phone:
+                await self.fill_form_field("input[name='contact']", contact_phone)
+
+            # 分类 (来自内容的 qualification_type)
             category = kwargs.get("category", "")
             if category:
                 await self.fill_form_field("select[name='category_id']", category, "select")
-            contact = kwargs.get("contact", self.account.get("phone", ""))
-            if contact:
-                await self.fill_form_field("input[name='contact']", contact)
+
+            # 图片上传
+            images = kwargs.get("images", [])
+            for img_path in images:
+                await self.upload_image("input[type='file']", img_path)
+                await behavior_sim.random_delay(1, 2)
+
             await behavior_sim.random_delay(1, 3)
             submit_btn = await self._page.query_selector("button[type='submit'], input[type='submit']")
             if submit_btn:

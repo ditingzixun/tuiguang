@@ -1,7 +1,7 @@
 """知乎自媒体平台插件"""
 from plugins.base_plugin import BasePlatformPlugin
 from utils.behavior_sim import behavior_sim
-from loguru import logger
+import logging; logger = logging.getLogger(__name__)
 
 
 class ZhihuPlugin(BasePlatformPlugin):
@@ -47,6 +47,12 @@ class ZhihuPlugin(BasePlatformPlugin):
             await self._page.goto(self.platform_info["publish_url"], wait_until="networkidle")
             await behavior_sim.random_delay(2, 4)
             await behavior_sim.random_scroll(self._page)
+            company_name = kwargs.get("company_name", "")
+            if company_name:
+                company_byline = f"\n作者: {company_name}"
+                if company_name not in content:
+                    content = content.rstrip() + company_byline
+
             title_input = await self._page.query_selector("textarea[placeholder='请输入标题']")
             if title_input:
                 await title_input.click()
@@ -60,6 +66,14 @@ class ZhihuPlugin(BasePlatformPlugin):
                     await self._page.keyboard.type(paragraph, delay=50)
                     await self._page.keyboard.press("Enter")
                     await behavior_sim.random_delay(0.3, 0.8)
+
+            # 图片上传（封面）
+            images = kwargs.get("images", [])
+            if images:
+                cover_input = await self._page.query_selector("input[type='file']")
+                if cover_input:
+                    await cover_input.set_input_files(images[0])
+                    await behavior_sim.random_delay(2, 3)
             publish_btn = await self._page.query_selector("button:has-text('发布')")
             if publish_btn:
                 await publish_btn.click()

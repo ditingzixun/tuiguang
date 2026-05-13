@@ -6,7 +6,7 @@ import hashlib
 import random
 import string
 from datetime import datetime, timedelta
-from loguru import logger
+import logging; logger = logging.getLogger(__name__)
 
 
 def generate_id() -> str:
