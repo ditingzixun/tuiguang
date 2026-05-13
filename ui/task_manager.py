@@ -124,7 +124,7 @@ class TaskDialog(QDialog):
             "account_id": self.account_combo.currentData(),
             "content_id": self.content_combo.currentData(),
             "title": self.title_edit.text() or None,
-            "scheduled_at": self.schedule_time.toPyDateTime().strftime("%Y-%m-%d %H:%M:%S") if self.schedule_check.isChecked() else None,
+            "scheduled_at": self.schedule_time.toPython().strftime("%Y-%m-%d %H:%M:%S") if self.schedule_check.isChecked() else None,
             "max_retries": self.retry_spin.value(),
             "image_paths": self._get_image_paths_json(),
         }
